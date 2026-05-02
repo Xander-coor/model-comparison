@@ -1,0 +1,670 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI 模型比較結論可視化</title>
+  <style>
+    :root {
+      --ink: #17201b;
+      --muted: #66736a;
+      --line: #d9e0da;
+      --paper: #f8faf6;
+      --panel: #ffffff;
+      --green: #1f7a5c;
+      --teal: #157d88;
+      --blue: #3568a8;
+      --amber: #bc7a18;
+      --red: #b64a3c;
+      --shadow: 0 18px 50px rgba(37, 51, 43, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, rgba(31, 122, 92, 0.08), transparent 420px),
+        var(--paper);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+      line-height: 1.65;
+    }
+
+    .page {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 40px 0 56px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+      gap: 24px;
+      align-items: stretch;
+      margin-bottom: 24px;
+    }
+
+    .hero-main,
+    .hero-side,
+    .panel,
+    .model-card,
+    .guide-card,
+    .workflow {
+      background: rgba(255, 255, 255, 0.88);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .hero-main {
+      padding: 34px;
+      min-height: 380px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .hero-main::after {
+      content: "";
+      position: absolute;
+      inset: auto -80px -110px auto;
+      width: 360px;
+      height: 360px;
+      background:
+        radial-gradient(circle at 38% 38%, rgba(31, 122, 92, 0.2), transparent 34%),
+        conic-gradient(from 210deg, rgba(31, 122, 92, 0.24), rgba(21, 125, 136, 0.14), rgba(188, 122, 24, 0.18), rgba(31, 122, 92, 0.24));
+      border-radius: 50%;
+      filter: blur(0.2px);
+      opacity: 0.65;
+    }
+
+    .eyebrow {
+      color: var(--green);
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      max-width: 860px;
+      margin: 12px 0 16px;
+      font-size: clamp(34px, 5vw, 64px);
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    .lead {
+      max-width: 780px;
+      margin: 0;
+      color: #45524a;
+      font-size: 18px;
+    }
+
+    .hero-bottom {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 32px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .metric {
+      padding: 16px;
+      border: 1px solid rgba(31, 122, 92, 0.18);
+      border-radius: 8px;
+      background: rgba(248, 250, 246, 0.9);
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 28px;
+      line-height: 1;
+      color: var(--green);
+    }
+
+    .metric span {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .hero-side {
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .verdict {
+      padding: 18px;
+      border-radius: 8px;
+      color: #0f271f;
+      background: #e8f3ed;
+      border: 1px solid #c6dfd1;
+    }
+
+    .verdict h2,
+    .section-title h2,
+    .panel h2 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.25;
+    }
+
+    .verdict p {
+      margin: 10px 0 0;
+      color: #385348;
+    }
+
+    .legend {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .legend li {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex: 0 0 auto;
+    }
+
+    .section-title {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: end;
+      margin: 34px 0 14px;
+    }
+
+    .section-title p {
+      max-width: 640px;
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .rank-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .panel {
+      padding: 22px;
+    }
+
+    .rank-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .rank-row {
+      display: grid;
+      grid-template-columns: 34px 104px minmax(0, 1fr);
+      align-items: center;
+      gap: 12px;
+    }
+
+    .rank-no {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      background: var(--green);
+      font-weight: 800;
+    }
+
+    .model-name {
+      font-weight: 800;
+    }
+
+    .bar-track {
+      height: 12px;
+      border-radius: 999px;
+      background: #edf1ed;
+      overflow: hidden;
+    }
+
+    .bar {
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--green), var(--teal));
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(190px, 1fr));
+      gap: 14px;
+    }
+
+    .model-card {
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-height: 340px;
+      box-shadow: 0 12px 34px rgba(37, 51, 43, 0.09);
+    }
+
+    .badge {
+      align-self: flex-start;
+      padding: 4px 9px;
+      border-radius: 999px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .model-card h3 {
+      margin: 0;
+      font-size: 23px;
+    }
+
+    .role {
+      margin: -8px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .model-card p {
+      margin: 0;
+      color: #49574f;
+      font-size: 14px;
+    }
+
+    .mini-list {
+      display: grid;
+      gap: 8px;
+      margin: auto 0 0;
+      padding: 0;
+      list-style: none;
+      font-size: 13px;
+      color: #405149;
+    }
+
+    .mini-list li {
+      padding: 9px 10px;
+      border-radius: 8px;
+      background: #f4f7f3;
+      border: 1px solid #e3e9e3;
+    }
+
+    .guide-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(190px, 1fr));
+      gap: 14px;
+    }
+
+    .guide-card {
+      padding: 16px;
+      box-shadow: 0 12px 34px rgba(37, 51, 43, 0.08);
+    }
+
+    .guide-card .use {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .guide-card h3 {
+      margin: 6px 0 8px;
+      font-size: 18px;
+    }
+
+    .guide-card p {
+      margin: 0;
+      color: #4a574f;
+      font-size: 14px;
+    }
+
+    .workflow {
+      padding: 24px;
+      overflow: hidden;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(160px, 1fr));
+      gap: 0;
+      margin-top: 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .step {
+      position: relative;
+      padding: 18px;
+      min-height: 164px;
+      border-right: 1px solid var(--line);
+    }
+
+    .step:last-child {
+      border-right: 0;
+    }
+
+    .step-num {
+      display: inline-grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      color: #fff;
+      background: var(--green);
+      font-weight: 900;
+      font-size: 13px;
+    }
+
+    .step h3 {
+      margin: 14px 0 8px;
+      font-size: 18px;
+    }
+
+    .step p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .quote {
+      margin-top: 22px;
+      padding: 22px;
+      border-left: 5px solid var(--green);
+      background: #edf5ef;
+      color: #244339;
+      font-size: 20px;
+      font-weight: 800;
+      border-radius: 0 8px 8px 0;
+    }
+
+    .source-note {
+      margin-top: 20px;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: right;
+    }
+
+    @media (max-width: 980px) {
+      .hero,
+      .rank-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .cards,
+      .guide-grid,
+      .flow {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .step {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .step:last-child {
+        border-bottom: 0;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .page {
+        width: min(100% - 22px, 1180px);
+        padding-top: 18px;
+      }
+
+      .hero-main,
+      .hero-side,
+      .panel,
+      .workflow {
+        padding: 18px;
+      }
+
+      .hero-bottom,
+      .cards,
+      .guide-grid,
+      .flow {
+        grid-template-columns: 1fr;
+      }
+
+      .section-title {
+        display: block;
+      }
+
+      .section-title p {
+        margin-top: 8px;
+      }
+
+      .rank-row {
+        grid-template-columns: 34px 86px minmax(0, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <div class="hero-main">
+        <div>
+          <div class="eyebrow">Reddit e-bike 社群分析 · 多模型評比</div>
+          <h1>五個 AI 模型，最穩的答案是分工使用。</h1>
+          <p class="lead">這份可視化把原始結論整理成一頁決策儀表板：誰最可信、誰最會寫策略、誰適合做簡報骨架，以及哪些結果只能當靈感。</p>
+        </div>
+        <div class="hero-bottom">
+          <div class="metric">
+            <strong>499</strong>
+            <span>篇 Reddit 貼文</span>
+          </div>
+          <div class="metric">
+            <strong>4,974</strong>
+            <span>則留言抽樣</span>
+          </div>
+          <div class="metric">
+            <strong>Top 10</strong>
+            <span>每篇約取熱門留言</span>
+          </div>
+        </div>
+      </div>
+
+      <aside class="hero-side">
+        <div class="verdict">
+          <h2>一句話結論</h2>
+          <p>Claude 保證可信度，GPT 負責洞察敘事，Copilot 強化商業框架，Gemini 做數字校驗，Perplexity 只能作靈感來源。</p>
+        </div>
+        <ul class="legend">
+          <li><span class="dot" style="background: var(--green);"></span>可信研究底稿：Claude</li>
+          <li><span class="dot" style="background: var(--teal);"></span>策略洞察報告：GPT</li>
+          <li><span class="dot" style="background: var(--blue);"></span>顧問式骨架：Copilot</li>
+          <li><span class="dot" style="background: var(--amber);"></span>快速核數：Gemini</li>
+          <li><span class="dot" style="background: var(--red);"></span>靈感但需查核：Perplexity</li>
+        </ul>
+      </aside>
+    </section>
+
+    <div class="section-title">
+      <h2>雙排行榜</h2>
+      <p>原文件把評估拆成硬一致性，以及方法與可用性。Claude 兩邊都第一；GPT 在策略表達上緊追；Perplexity 因資料口徑錯位墊底。</p>
+    </div>
+
+    <section class="rank-grid">
+      <div class="panel">
+        <h2>Hard Accuracy / 數字與資料一致性</h2>
+        <div class="rank-list">
+          <div class="rank-row"><div class="rank-no">1</div><div class="model-name">Claude</div><div class="bar-track"><div class="bar" style="width: 100%;"></div></div></div>
+          <div class="rank-row"><div class="rank-no">2</div><div class="model-name">GPT</div><div class="bar-track"><div class="bar" style="width: 84%;"></div></div></div>
+          <div class="rank-row"><div class="rank-no">3</div><div class="model-name">Gemini</div><div class="bar-track"><div class="bar" style="width: 68%;"></div></div></div>
+          <div class="rank-row"><div class="rank-no">4</div><div class="model-name">Copilot</div><div class="bar-track"><div class="bar" style="width: 52%;"></div></div></div>
+          <div class="rank-row"><div class="rank-no">5</div><div class="model-name">Perplexity</div><div class="bar-track"><div class="bar" style="width: 30%;"></div></div></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Method & Usability / 方法與可用性</h2>
+        <div class="rank-list">
+          <div class="rank-row"><div class="rank-no">1</div><div class="model-name">Claude</div><div class="bar-track"><div class="bar" style="width: 100%;"></div></div></div>
+          <div class="rank-row"><div class="rank-no">2</div><div class="model-name">GPT</div><div class="bar-track"><div class="bar" style="width: 88%;"></div></div></div>
+          <div class="rank-row"><div class="rank-no">3</div><div class="model-name">Copilot</div><div class="bar-track"><div class="bar" style="width: 75%;"></div></div></div>
+          <div class="rank-row"><div class="rank-no">4</div><div class="model-name">Gemini</div><div class="bar-track"><div class="bar" style="width: 58%;"></div></div></div>
+          <div class="rank-row"><div class="rank-no">5</div><div class="model-name">Perplexity</div><div class="bar-track"><div class="bar" style="width: 30%;"></div></div></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="section-title">
+      <h2>五個模型定位</h2>
+      <p>每個模型的價值不在於單獨「誰最強」，而在於放到正確位置後，能不能補足整個研究到決策的鏈條。</p>
+    </div>
+
+    <section class="cards">
+      <article class="model-card">
+        <span class="badge" style="background: var(--green);">最可信</span>
+        <h3>Claude</h3>
+        <div class="role">研究員 / 方法審查者</div>
+        <p>最能把資料結構、Join 關係、URL pattern、regex 主題分類、爭議比與限制揭露交代清楚。</p>
+        <ul class="mini-list">
+          <li>抓到 499 / 4,974 正確口徑</li>
+          <li>明確指出 Top10 留言抽樣限制</li>
+          <li>適合正式研究底稿</li>
+        </ul>
+      </article>
+
+      <article class="model-card">
+        <span class="badge" style="background: var(--teal);">最會整合</span>
+        <h3>GPT</h3>
+        <div class="role">策略分析師 / 報告整合者</div>
+        <p>能把資料洞察轉成可理解、可交付的策略語言，適合 executive summary 與品牌、內容、平台建議。</p>
+        <ul class="mini-list">
+          <li>掌握資料量級與代表案例</li>
+          <li>敘事、洞察命名與建議清楚</li>
+          <li>方法限制略少於 Claude</li>
+        </ul>
+      </article>
+
+      <article class="model-card">
+        <span class="badge" style="background: var(--blue);">最像顧問</span>
+        <h3>Copilot</h3>
+        <div class="role">簡報架構師 / 機會設計者</div>
+        <p>擅長把洞察包成風險雷達、機會地圖、內容策略與驗證指標，但部分內容偏理想研究設計。</p>
+        <ul class="mini-list">
+          <li>商業框架完整</li>
+          <li>適合提案與簡報骨架</li>
+          <li>不宜單獨作為數據結論</li>
+        </ul>
+      </article>
+
+      <article class="model-card">
+        <span class="badge" style="background: var(--amber);">最會核數</span>
+        <h3>Gemini</h3>
+        <div class="role">統計助理 / 快速核數工具</div>
+        <p>乾淨、客觀、保守，能快速確認資料量級、Top 貼文、平均值與相關係數。</p>
+        <ul class="mini-list">
+          <li>硬準確性排名第 3</li>
+          <li>適合 sanity check</li>
+          <li>深度策略與限制揭露不足</li>
+        </ul>
+      </article>
+
+      <article class="model-card">
+        <span class="badge" style="background: var(--red);">需查核</span>
+        <h3>Perplexity</h3>
+        <div class="role">靈感來源 / 嚴格查核評論者</div>
+        <p>能提供梗圖、奇觀、安全與監管焦慮等質性角度，但資料量級錯誤，不能直接引用量化結論。</p>
+        <ul class="mini-list">
+          <li>資料口徑與本次不一致</li>
+          <li>兩榜都排最後</li>
+          <li>只取靈感，不取數字</li>
+        </ul>
+      </article>
+    </section>
+
+    <div class="section-title">
+      <h2>使用指南</h2>
+      <p>把模型當成不同角色，而不是互相替代的答案機器。正式研究、策略報告、顧問提案、核數與靈感探索，各有最佳工具。</p>
+    </div>
+
+    <section class="guide-grid">
+      <article class="guide-card">
+        <div class="use">正式研究報告</div>
+        <h3>優先 Claude</h3>
+        <p>負責資料審查、方法章節、限制說明、分類邏輯與可信度把關。</p>
+      </article>
+      <article class="guide-card">
+        <div class="use">策略型洞察報告</div>
+        <h3>優先 GPT</h3>
+        <p>負責主報告架構、洞察命名、商業意涵與 executive summary。</p>
+      </article>
+      <article class="guide-card">
+        <div class="use">顧問式簡報或提案</div>
+        <h3>Copilot + Claude</h3>
+        <p>Copilot 搭骨架，Claude 補資料限制、方法透明度與研究可信度。</p>
+      </article>
+      <article class="guide-card">
+        <div class="use">快速核對數字</div>
+        <h3>優先 Gemini</h3>
+        <p>檢查資料筆數、日期範圍、相關係數、最高分貼文與高分留言。</p>
+      </article>
+      <article class="guide-card">
+        <div class="use">額外角度或靈感</div>
+        <h3>Perplexity 輔助</h3>
+        <p>只採用主題靈感，所有數字與事實都回到原始資料或其他模型重驗。</p>
+      </article>
+    </section>
+
+    <section class="workflow" style="margin-top: 34px;">
+      <h2>最推薦工作流</h2>
+      <div class="flow">
+        <div class="step">
+          <span class="step-num">1</span>
+          <h3>Gemini 快速核數</h3>
+          <p>先確認資料規模、日期、Top 貼文與相關係數是否合理。</p>
+        </div>
+        <div class="step">
+          <span class="step-num">2</span>
+          <h3>Claude 建立基礎</h3>
+          <p>確認資料結構、抽樣限制、分類方法、偏誤與可審查性。</p>
+        </div>
+        <div class="step">
+          <span class="step-num">3</span>
+          <h3>GPT 產出報告</h3>
+          <p>把結果轉成清楚主題、張力、痛點與策略建議。</p>
+        </div>
+        <div class="step">
+          <span class="step-num">4</span>
+          <h3>Copilot 做簡報</h3>
+          <p>補上風險雷達、機會地圖、行動方案與驗證指標。</p>
+        </div>
+        <div class="step">
+          <span class="step-num">5</span>
+          <h3>Perplexity 找旁支</h3>
+          <p>用於新角度發想，但必須逐條查核，避免口徑錯位。</p>
+        </div>
+      </div>
+      <div class="quote">最穩的組合不是選一個模型，而是用多模型分工：Claude 打地基，GPT 寫報告，Copilot 做簡報，Gemini 查數字，Perplexity 只提旁支想法。</div>
+    </section>
+
+    <div class="source-note">來源：Conclusion.txt · 轉製為單頁 HTML 可視化</div>
+  </main>
+</body>
+</html>
